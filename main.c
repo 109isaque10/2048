@@ -33,9 +33,10 @@ typedef struct {
     int **board;
     int size;
     int won;
+    int probability;
 } Game;
 
-void showMenu();
+void showMenu(Game *currentGame);
 
 void clear() { //Limpa o terminal no linux e windows
     if(!system("clear") || !system("cls"))
@@ -49,42 +50,59 @@ int **createMatrix(const int n, const int m) { //Cria matriz com n e m
     return matrix;
 }
 
-void newBlock(int **block, const int n, const int probability) { //Criar um novo bloco aleátorio
+void freeMatrix(int **blocks, int n){ //Libera a matrix da memória
+    for (int i = 0; i < n; i++)
+        free(blocks[i]);
+    free(blocks);
+}
+
+void copyIntMatrix(int **dest, int**source, int n) {
+    for (int i=0; i<n; i++)
+        memcpy(dest[i], source[i], sizeof(int) * n);
+}
+
+void newBlock(Game *currentGame) { //Criar um novo bloco aleátorio
     int x, y;
     do { //Enquanto o bloco de destino for diferente de 0 (Nulo), aleatorizar novamente
-        x = rand() % n, y = rand() % n;
-    } while (block[x][y] != 0);
-    block[x][y] = rand() % 100 < probability ? 2 : 4; //Quando o número for menor que a probabilidade entra o número 2, se não o 4
+        x = rand() % currentGame->size, y = rand() % currentGame->size;
+    } while (currentGame->board[x][y] != 0);
+    currentGame->board[x][y] = rand() % 100 < currentGame->probability ? 2 : 4; //Quando o número for menor que a probabilidade entra o número 2, se não o 4
 }
 
-int moveUp(int **block, int n, int *score) { //Mover os blocos para cima
+int moveUp(Game *currentGame) { //Mover os blocos para cima
     int moved = 0;
-    for (int j = 0; j < n; j++) {
+    for (int j = 0; j < currentGame->size; j++) {
         int newPos = 0;
-        for (int i = 0; i < n-1; i++) //Move todos os blocos para cima
-            if (block[i][j] != 0) {
+        for (int i = 0; i < currentGame->size-1; i++) //Move todos os blocos para cima
+            if (currentGame->board[i][j] != 0) {
                 if (i != newPos) {
-                    block[newPos][j] = block[i][j];
-                    block[i][j] = 0;
+                    currentGame->board[newPos][j] = currentGame->board[i][j];
+                    currentGame->board[i][j] = 0;
                     moved = 1;
                 }
                 newPos++;
             }
 
-        for (int i = 0; i < n-1; i++) //Combina os blocos vizinhos de cima para baixo
-            if (block[i][j] != 0 && block[i][j] == block[i+1][j]) {
-                block[i][j] *= 2;
-                *score += block[i][j];
-                block[i+1][j] = 0;
+        for (int i = 0; i < currentGame->size-1; i++) //Combina os blocos vizinhos de cima para baixo
+            if (currentGame->board[i][j] != 0 && currentGame->board[i][j] == currentGame->board[i+1][j]) {
+                currentGame->board[i][j] *= 2;
+                currentGame->player.score += currentGame->board[i][j];
+                currentGame->board[i+1][j] = 0;
                 moved = 1;
             }
 
         newPos = 0;
-        for (int i = 0; i < n-1; i++) //Move novamente os blocos para cima para preencher os vazios
-            if (block[i][j] != 0) {
+        for (int i = 0; i < currentGame->size-1; i++) //Move novamente os blocos para cima para preencher os vazios
+            if (currentGame->board[i][j] != 0) {
                 if (i != newPos) {
-                    block[newPos][j] = block[i][j];
-                    block[i][j] = 0;
+                    currentGame->board[newPos][j] = currentGame->board[i][j];
+                    currentGame->board[i][j] = 0;
+                    if (currentGame->board[newPos][j] == 256)
+                        currentGame->player.undoMoves++;
+                    else if (currentGame->board[newPos][j] == 512)
+                        currentGame->player.changeMoves++;
+                    else if (currentGame->board[newPos][j] == 2048)
+                        currentGame->won = 1;
                 }
                 newPos++;
             }
@@ -92,34 +110,40 @@ int moveUp(int **block, int n, int *score) { //Mover os blocos para cima
     return moved;
 }
 
-int moveDown(int **block, int n, int *score) { //Move os blocos para baixo
+int moveDown(Game *currentGame) { //Move os blocos para baixo
     int moved = 0;
-    for (int j = 0; j < n; j++) {
-        int newPos = n-1;
-        for (int i = n-1; i >= 0; i--) //Move todos os blocos para baixo
-            if (block[i][j] != 0) {
+    for (int j = 0; j < currentGame->size; j++) {
+        int newPos = currentGame->size-1;
+        for (int i = currentGame->size-1; i >= 0; i--) //Move todos os blocos para baixo
+            if (currentGame->board[i][j] != 0) {
                 if (i != newPos) {
-                    block[newPos][j] = block[i][j];
-                    block[i][j] = 0;
+                    currentGame->board[newPos][j] = currentGame->board[i][j];
+                    currentGame->board[i][j] = 0;
                     moved = 1;
                 }
                 newPos--;
             }
 
-        for (int i = n-1; i > 0; i--)
-            if (block[i][j] != 0 && block[i][j] == block[i-1][j]) { //Combina os blocos vizinhos de baixo para cima
-                block[i][j] *= 2;
-                *score += block[i][j];
-                block[i-1][j] = 0;
+        for (int i = currentGame->size-1; i > 0; i--)
+            if (currentGame->board[i][j] != 0 && currentGame->board[i][j] == currentGame->board[i-1][j]) { //Combina os blocos vizinhos de baixo para cima
+                currentGame->board[i][j] *= 2;
+                currentGame->player.score += currentGame->board[i][j];
+                currentGame->board[i-1][j] = 0;
                 moved = 1;
             }
 
-        newPos = n-1;
-        for (int i = n-1; i >= 0; i--) //Move novamente os blocos paraa baixo para preencher os vazios
-            if (block[i][j] != 0) {
+        newPos = currentGame->size-1;
+        for (int i = currentGame->size-1; i >= 0; i--) //Move novamente os blocos paraa baixo para preencher os vazios
+            if (currentGame->board[i][j] != 0) {
                 if (i != newPos) {
-                    block[newPos][j] = block[i][j];
-                    block[i][j] = 0;
+                    currentGame->board[newPos][j] = currentGame->board[i][j];
+                    currentGame->board[i][j] = 0;
+                    if (currentGame->board[newPos][j] == 256)
+                        currentGame->player.undoMoves++;
+                    else if (currentGame->board[newPos][j] == 512)
+                        currentGame->player.changeMoves++;
+                    else if (currentGame->board[newPos][j] == 2048)
+                        currentGame->won = 1;
                 }
                 newPos--;
             }
@@ -127,34 +151,40 @@ int moveDown(int **block, int n, int *score) { //Move os blocos para baixo
     return moved;
 }
 
-int moveLeft(int **block, int n, int *score) { //Move os blocos para a esquerda
+int moveLeft(Game *currentGame) { //Move os blocos para a esquerda
     int moved = 0;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < currentGame->size; i++) {
         int newPos = 0;
-        for (int j=0; j < n-1; j++) //Move todos os blocos para a esquerda
-            if (block[i][j] != 0) {
+        for (int j=0; j < currentGame->size-1; j++) //Move todos os blocos para a esquerda
+            if (currentGame->board[i][j] != 0) {
                 if (j != newPos) {
-                    block[i][newPos] = block[i][j];
-                    block[i][j] = 0;
+                    currentGame->board[i][newPos] = currentGame->board[i][j];
+                    currentGame->board[i][j] = 0;
                     moved = 1;
                 }
                 newPos++;
             }
 
-        for (int j = 0; j < n-1; j++) //Combina os blocos vizinhos da esquerda para a direita
-            if (block[i][j] != 0 && block[i][j] == block[i][j+1]) {
-                block[i][j] *= 2;
-                *score += block[i][j];
-                block[i][j+1] = 0;
+        for (int j = 0; j < currentGame->size-1; j++) //Combina os blocos vizinhos da esquerda para a direita
+            if (currentGame->board[i][j] != 0 && currentGame->board[i][j] == currentGame->board[i][j+1]) {
+                currentGame->board[i][j] *= 2;
+                currentGame->player.score += currentGame->board[i][j];
+                currentGame->board[i][j+1] = 0;
                 moved = 1;
             }
 
         newPos = 0;
-        for (int j = 0; j < n-1; j++) //Move novamente os blocos para preencher os vazios
-            if (block[i][j] != 0) {
+        for (int j = 0; j < currentGame->size-1; j++) //Move novamente os blocos para preencher os vazios
+            if (currentGame->board[i][j] != 0) {
                 if (j != newPos) {
-                    block[i][newPos] = block[i][j];
-                    block[i][j] = 0;
+                    currentGame->board[i][newPos] = currentGame->board[i][j];
+                    currentGame->board[i][j] = 0;
+                    if (currentGame->board[i][newPos] == 256)
+                        currentGame->player.undoMoves++;
+                    else if (currentGame->board[i][newPos] == 512)
+                        currentGame->player.changeMoves++;
+                    else if (currentGame->board[i][newPos] == 2048)
+                        currentGame->won = 1;
                 }
                 newPos++;
             }
@@ -162,43 +192,78 @@ int moveLeft(int **block, int n, int *score) { //Move os blocos para a esquerda
     return moved;
 }
 
-int moveRight(int **block, int n, int *score) { //Move os blocos para a direita
+int moveRight(Game *currentGame) { //Move os blocos para a direita
     int moved = 0;
-    for (int i = 0; i < n; i++) { //Move todos blocos não nulos para a direita
-        int newPos = n-1;
-        for (int j = n-1; j >= 0; j--)
-            if (block[i][j] != 0) {
+    for (int i = 0; i < currentGame->size; i++) { //Move todos blocos não nulos para a direita
+        int newPos = currentGame->size-1;
+        for (int j = currentGame->size-1; j >= 0; j--)
+            if (currentGame->board[i][j] != 0) {
                 if (j != newPos) {
-                    block[i][newPos] = block[i][j];
-                    block[i][j] = 0;
+                    currentGame->board[i][newPos] = currentGame->board[i][j];
+                    currentGame->board[i][j] = 0;
                     moved = 1;
                 }
                 newPos--;
             }
 
-        for (int j = n-1; j > 0; j--) //Combina os blocos vizinhos da direita para a esquerda
-            if (block[i][j] != 0 && block[i][j] == block[i][j-1]) {
-                block[i][j] *= 2;
-                *score += block[i][j];
-                block[i][j-1] = 0;
+        for (int j = currentGame->size-1; j > 0; j--) //Combina os blocos vizinhos da direita para a esquerda
+            if (currentGame->board[i][j] != 0 && currentGame->board[i][j] == currentGame->board[i][j-1]) {
+                currentGame->board[i][j] *= 2;
+                currentGame->player.score += currentGame->board[i][j];
+                currentGame->board[i][j-1] = 0;
                 moved = 1;
             }
 
-        newPos = n - 1;
-        for (int j = n-1; j >= 0; j--) //Move novamente os blocos para preencher os vazios
-            if (block[i][j] != 0) {
+        newPos = currentGame->size-1;
+        for (int j = currentGame->size-1; j >= 0; j--) //Move novamente os blocos para preencher os vazios
+            if (currentGame->board[i][j] != 0) {
                 if (j != newPos) {
-                    block[i][newPos] = block[i][j];
-                    block[i][j] = 0;
+                    currentGame->board[i][newPos] = currentGame->board[i][j];
+                    currentGame->board[i][j] = 0;
+                    if (currentGame->board[i][newPos] == 256)
+                        currentGame->player.undoMoves++;
+                    else if (currentGame->board[i][newPos] == 512)
+                        currentGame->player.changeMoves++;
+                    else if (currentGame->board[i][newPos] == 2048)
+                        currentGame->won = 1;
                 }
                 newPos--;
             }
     }
     return moved;
+}
+
+void undoMove(Game *currentGame, int **tempBoard) {
+    copyIntMatrix(currentGame->board, tempBoard, currentGame->size);
+    currentGame->player.undoMoves--;
+}
+
+void changePos(Game *currentGame) {
+    int x, y, i1=0, j1=0, i2=0, j2=0;
+    char a, b;
+    scanf(" %c%d", &a, &x);
+    scanf(" %c%d", &b, &y);
+    if (a<=90 && b<=90) {
+        i1 = a - 'A';
+        j1 = x-1;
+        i2 = b - 'A';
+        j2 = y-1;
+    }else if (a<=122 && b<=122) {
+        i1 = a - 'a';
+        j1 = x-1;
+        i2 = b - 'a';
+        j2 = y-1;
+    }
+
+    if (currentGame->board[i1][j1] != 0 && currentGame->board[i2][j2] != 0) {
+        const int tmpBlock = currentGame->board[i2][j2];
+        currentGame->board[i2][j2] = currentGame->board[i1][j1];
+        currentGame->board[i1][j1] = tmpBlock;
+    }
 }
 
 void printTopTable(int n) { //Imprime o cabeçario da tabela
-    printf(TAB_TL);
+    printf(" " TAB_TL);
     for (int i=0;i<n;i++) {
         for (int j=0;j<=n;j++)
             printf(TAB_HOR);
@@ -209,7 +274,7 @@ void printTopTable(int n) { //Imprime o cabeçario da tabela
 }
 
 void printMiddleTable(int n) { //Imprime as divisões horizontais
-    printf(TAB_ML);
+    printf(" " TAB_ML);
     for (int i=0;i<n;i++) {
         for (int j=0;j<=n;j++)
             printf(TAB_HOR);
@@ -220,14 +285,21 @@ void printMiddleTable(int n) { //Imprime as divisões horizontais
 }
 
 void printBottomTable(int n) { //Imprime o final da tabela
-    printf(TAB_BL);
+    printf(" " TAB_BL);
     for (int i=0;i<n;i++) {
         for (int j=0;j<=n;j++)
             printf(TAB_HOR);
         if (i!=n-1) //Imprime junção da tabela, exceto no final
             printf(TAB_BJ);
     }
-    printf(TAB_BR "\n");
+    printf(TAB_BR "\n ");
+
+    for (int i=0;i<n;i++)
+        if (i==0)
+            printf("%*d", n, i+1);
+        else
+            printf("%*d", n+2, i+1);
+    printf("\n");
 }
 
 void printGame(int **block, int n) { //Imprime a tabela completa do jogo
@@ -235,6 +307,8 @@ void printGame(int **block, int n) { //Imprime a tabela completa do jogo
     printTopTable(n);
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
+            if (j == 0)
+                printf("%c", 'A'+i);
             if (block[i][j] != 0) //Se o bloco for não nulo, colorir de amarelo
                 printf( TAB_VER ANSI_BOLD ANSI_COLOR_YELLOW "%*d " ANSI_RESET, n, block[i][j]);
             else
@@ -247,10 +321,50 @@ void printGame(int **block, int n) { //Imprime a tabela completa do jogo
     printBottomTable(n);
 }
 
-void freeMatrix(int **blocks, int n){ //Libera a matrix da memória
-    for (int i = 0; i < n; i++)
-        free(blocks[i]);
-    free(blocks);
+void printScore(Player player) {
+    printf("Pontuação: %4d Desfazer: %2d Trocar: %2d\n", player.score, player.undoMoves, player.undoMoves);
+}
+
+void saveGame(const Game *currentGame) {
+    char fileName[TAM];
+
+    clear();
+    printf("Qual o nome do arquivo a ser salvo?\n(ATENÇÃO! O ARQUIVO SERÁ SOBRESCRITO)\n");
+    scanf("%s", fileName);
+
+    FILE *file = fopen(fileName, "wb");
+    fwrite(&currentGame->size, sizeof(int), 1, file);
+    fwrite(&currentGame->probability, sizeof(int), 1, file);
+    fwrite(&currentGame->player, sizeof(Player), 1, file);
+    fwrite(&currentGame->won, sizeof(int), 1, file);
+
+    for (int i=0; i<currentGame->size; i++)
+        for (int j=0; j<currentGame->size; j++)
+            fwrite(&currentGame->board[i][j], sizeof(int), 1, file);
+
+    fclose(file);
+}
+
+void loadGame(Game *currentGame) {
+    char fileName[TAM];
+
+    clear();
+    printf("Qual o nome do arquivo a ser carregado?\n");
+    scanf("%s", fileName);
+
+    FILE *file = fopen(fileName, "rb");
+    fread(&currentGame->size, sizeof(int), 1, file);
+    fread(&currentGame->probability, sizeof(int), 1, file);
+    fread(&currentGame->player, sizeof(Player), 1, file);
+    fread(&currentGame->won, sizeof(int), 1, file);
+
+    currentGame->board = createMatrix(currentGame->size, currentGame->size);
+
+    for (int i=0; i<currentGame->size; i++)
+        for (int j=0; j<currentGame->size; j++)
+            fread(&currentGame->board[i][j], sizeof(int), 1, file);
+
+    fclose(file);
 }
 
 void newGame(int n, char name[TAM], Game *currentGame) { //Cria um novo jogo
@@ -262,60 +376,63 @@ void newGame(int n, char name[TAM], Game *currentGame) { //Cria um novo jogo
     currentGame->size = n;
     currentGame->won = 0;
     currentGame->board = blocks;
+    switch (currentGame->size) { //Determina a probabilidade de acordo com a tabela escolhida
+        case 4:
+            currentGame->probability = 90;
+            break;
+        case 5:
+            currentGame->probability = 85;
+            break;
+        default:
+            currentGame->probability = 80;
+            break;
+    }
+    newBlock(currentGame);
 }
 
 void runGame(Game *currentGame) {
-    int probability;
-    switch (currentGame->size) { //Determina a probabilidade de acordo com a tabela escolhida
-        case 4:
-            probability = 90;
-            break;
-        case 5:
-            probability = 85;
-            break;
-        default:
-            probability = 80;
-            break;
-    }
-    newBlock(currentGame->board, currentGame->size, probability);
     int moved = 0; //Variavel que determina se alguma peça foi movida
+    int **tempBoard = createMatrix(currentGame->size, currentGame->size);
     while (!currentGame->won) {
         if (moved) {
-            newBlock(currentGame->board, currentGame->size, probability);
+            newBlock(currentGame);
             moved = 0;
         }
         printGame(currentGame->board, currentGame->size);
+        printScore(currentGame->player);
         char choice;
         scanf(" %c", &choice);
         switch (choice) { //Determina o que fazer de acordo com o que o usuário digitar
             case 'a':
             case 'A':
-                moved = moveLeft(currentGame->board, currentGame->size, &currentGame->player.score);
+                copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
+                moved = moveLeft(currentGame);
                 break;
             case 'd':
             case 'D':
-                moved = moveRight(currentGame->board, currentGame->size, &currentGame->player.score);
+                copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
+                moved = moveRight(currentGame);
                 break;
             case 's':
             case 'S':
-                moved = moveDown(currentGame->board, currentGame->size, &currentGame->player.score);
+                copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
+                moved = moveDown(currentGame);
                 break;
             case 'w':
             case 'W':
-                moved = moveUp(currentGame->board, currentGame->size, &currentGame->player.score);
+                copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
+                moved = moveUp(currentGame);
                 break;
             case 'u':
             case 'U':
-                //undoMove();
+                undoMove(currentGame, tempBoard);
                 break;
             case 't':
             case 'T':
-                int pos1, pos2;
-                scanf("%d%d", &pos1, &pos2);
-                //changePos();
+                changePos(currentGame);
+                break;
             case 'v':
             case 'V':
-                showMenu();
                 return;
         }
     }
@@ -348,73 +465,85 @@ void newGameMenu(Game *currentGame) { //Cria o menu de novo jogo
     }
 }
 
-void exitGame() { //Confirmação simples de sair do jogo
+int exitGame(Game *currentGame) { //Confirmação simples de sair do jogo
     clear();
-    printf("Você realmente deseja sair? (Sim/Não)\n");
+    while (1){ //Repete até uma opção válida ser digitada
+        printf("Você realmente deseja sair? (Sim/Não)\n");
 
-    char choice[3];
-    scanf("%s", choice);
+        char choice[3];
+        scanf("%s", choice);
 
-    switch (choice[0]) { //Se for sair não faz nada e volta ao main()
-        case 's':
-        case 'S':
-            break;
-        case 'n':
-        case 'N':
-            showMenu();
-            return;
-        default:
-            printf("\nOpção inválida!\n");
-            exitGame();
+        switch (choice[0]) {
+            //Se for sair não faz nada e volta ao main()
+            case 's':
+            case 'S':
+                return 1;
+            case 'n':
+            case 'N':
+                return 0;
+            default:
+                printf("\nOpção inválida!\n");
+                exitGame(currentGame);
+        }
     }
 }
 
-void showMenu(Game *currentGame) { //Mostra o menu inicial
-    clear();
+void showMenu(Game *currentGame) {
+    while (1){
+        //Mostra o menu inicial
+        clear();
 
-    printf("(R) Sair\n");
-    printf("(N) Novo Jogo\n");
-    printf("(J) Continuar o jogo atual\n");
-    printf("(C) Carregar um jogo salvo\n");
-    printf("(S) Salvar o jogo atual\n");
-    printf("(M) Mostrar Ranking\n");
-    printf("(A) Ajuda com as instruções de como jogar\n");
+        printf("(R) Sair\n");
+        printf("(N) Novo Jogo\n");
+        printf("(J) Continuar o jogo atual\n");
+        printf("(C) Carregar um jogo salvo\n");
+        printf("(S) Salvar o jogo atual\n");
+        printf("(M) Mostrar Ranking\n");
+        printf("(A) Ajuda com as instruções de como jogar\n");
 
-    char choice;
-    scanf(" %c", &choice);
-    switch (choice) {
-        case 'R':
-        case 'r':
-            exitGame();
-            break;
-        case 'N':
-        case 'n':
-            newGameMenu(currentGame);
-            break;
-        case 'J':
-        case 'j':
-            if (currentGame->board != NULL)
+        char choice;
+        scanf(" %c", &choice);
+        switch (choice) {
+            case 'R':
+            case 'r':
+                if (exitGame(currentGame))
+                    return;
+                else
+                    break;
+            case 'N':
+            case 'n':
+                newGameMenu(currentGame);
+                break;
+            case 'J':
+            case 'j':
+                if (currentGame->board != NULL)
+                    runGame(currentGame);
+                else {
+                    clear();
+                    printf("Nenhum jogo em andamento!");
+                }
+                break;
+            case 'C':
+            case 'c':
+                loadGame(currentGame);
                 runGame(currentGame);
-            else {
-                clear();
-                printf("Nenhum jogo em andamento!");
-            }
-            break;
-        case 'C':
-        case 'c':
-            showMenu(currentGame);
-            break;
-        case 'M':
-        case 'm':
-            system("clear");
-            break;
-        case 'A':
-        case 'a':
-            system("clear");
-            return;
-        default:
-            printf("\nOpção inválida!");
-            showMenu(currentGame);
+                break;
+            case 'S':
+            case 's':
+                saveGame(currentGame);
+                break;
+            case 'M':
+            case 'm':
+                showRanking(currentGame);
+                break;
+            case 'A':
+            case 'a':
+                showHelp(currentGame);
+                break;
+            default:
+                printf("\nOpção inválida!");
+                break;
+        }
     }
 }
 
