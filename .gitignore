@@ -35,6 +35,11 @@
 *.i*86
 *.x86_64
 *.hex
+main
+
+# Savegames
+game*
+ranking.dat
 
 # Debug files
 *.dSYM/

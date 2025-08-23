@@ -8,7 +8,13 @@
 
 #define ANSI_RESET            "\x1b[0m"  // desativa os efeitos anteriores
 #define ANSI_BOLD             "\x1b[1m"  // coloca o texto em negrito
+#define ANSI_ITALIC           "\x1b[3m" // coloca o texto em italico
+#define ANSI_UNDERLINE        "\x1b[4m" // coloca double underline no texto
+#define ANSI_DOUBLE_UNDERLINE        "\x1b[21m" // coloca double underline no texto
 #define ANSI_COLOR_YELLOW     "\x1b[33m" // cor amarela
+#define ANSI_COLOR_RED        "\x1b[31m" // cor vermelha
+#define ANSI_COLOR_GREEN      "\x1b[32m" // cor verde
+#define ANSI_COLOR_BLUE       "\x1b[34m" // cor azul
 #define TAB_HOR "\u2501" // ━ (horizontal)
 #define TAB_VER "\u2503" // ┃ (vertical)
 #define TAB_TL  "\u250F" // ┏ (top-left)
@@ -58,9 +64,9 @@ void enterContinue() {
 }
 
 int **createMatrix(const int n, const int m) { //Cria matriz com n e m
-    int **matrix = malloc(n * sizeof(int *));
+    int **matrix = calloc(n, sizeof(int *)); //Usa calloc para inicializar os blocos com 0
     for (int i = 0; i < n; i++)
-        matrix[i] = malloc(m*sizeof(int));
+        matrix[i] = calloc(m, sizeof(int));
     return matrix;
 }
 
@@ -75,15 +81,15 @@ void copyIntMatrix(int **dest, int**source, int n) {
         memcpy(dest[i], source[i], sizeof(int) * n);
 }
 
-void newBlock(Game *currentGame) { //Criar um novo bloco aleátorio
+void newBlock(const Game *currentGame) { //Cria um novo bloco aleátorio
     int x, y;
     do { //Enquanto o bloco de destino for diferente de 0 (Nulo), aleatorizar novamente
         x = rand() % currentGame->size, y = rand() % currentGame->size;
     } while (currentGame->board[x][y] != 0);
-    currentGame->board[x][y] = rand() % 100 < currentGame->probability ? 1024 : 4; //Quando o número for menor que a probabilidade entra o número 2, se não o 4
+    currentGame->board[x][y] = rand() % 100 < currentGame->probability ? 2 : 4; //Quando o número for menor que a probabilidade entra o número 2, se não o 4
 }
 
-int gameOver(Game *currentGame) { //Testa todas as peças para ver se tem peças adjacentes que podem ser juntadas
+int gameOver(const Game *currentGame) { //Testa todas as peças para ver se tem peças adjacentes que podem ser juntadas
     for (int i=0; i < currentGame->size; i++)
         for (int j=0; j < currentGame->size; j++) {
             if (currentGame->board[i][j] == 0)
@@ -280,26 +286,26 @@ int moveRight(Game *currentGame) { //Move os blocos para a direita
     return moved;
 }
 
-void undoMove(Game *currentGame, LastMove *lastMove) {
+void undoMove(Game *currentGame, LastMove *lastMove) { //Desfaz o ultimo movimento
     copyIntMatrix(currentGame->board, lastMove->lastBoard, currentGame->size);
     currentGame->player.score = lastMove->lastScore;
     currentGame->player.undoMoves--;
 }
 
-void changePos(Game *currentGame) {
+void changePos(const Game *currentGame) { //Muda a posição com o formato a1 b2
     int x, y, i1=0, j1=0, i2=0, j2=0;
     char a, b;
     scanf(" %c%d", &a, &x);
     scanf(" %c%d", &b, &y);
-    if (a<=90 && b<=90) { //Usa os ASCII codes para determinar o valor de A na tabela, 'A'-'A'=0, 'B'-'A'=1..
-        i1 = a - 'A';
-        j1 = x-1;
-        i2 = b - 'A';
-        j2 = y-1;
-    }else if (a<=122 && b<=122) {
+    if (a<=122 && b<=122) { //Usa os ASCII codes para determinar o valor de A na tabela, 'A'-'A'=0, 'B'-'A'=1..
         i1 = a - 'a';
         j1 = x-1;
         i2 = b - 'a';
+        j2 = y-1;
+    }else if (a<=90 && b<=90) {
+        i1 = a - 'A';
+        j1 = x-1;
+        i2 = b - 'A';
         j2 = y-1;
     }
 
@@ -313,7 +319,7 @@ void changePos(Game *currentGame) {
     }
 }
 
-void printTopTable(int n) { //Imprime o cabeçario da tabela
+void printTopTable(const int n) { //Imprime o cabeçário da tabela
     printf(" " TAB_TL);
     for (int i=0;i<n;i++) {
         for (int j=0;j<=n;j++)
@@ -360,10 +366,18 @@ void printGame(int **block, int n) { //Imprime a tabela completa do jogo
         for (int j = 0; j < n; j++) {
             if (j == 0)
                 printf("%c", 'A'+i);
-            if (block[i][j] != 0) //Se o bloco for não nulo, colorir de amarelo
-                printf( TAB_VER ANSI_BOLD ANSI_COLOR_YELLOW "%*d " ANSI_RESET, n, block[i][j]);
-            else
-                printf( TAB_VER ANSI_BOLD "%*d " ANSI_RESET, n, block[i][j]);
+            if (block[i][j] != 0) {
+                //Se o bloco for não nulo, colorir de acordo com a pontuação
+                if (block[i][j] < 128)
+                    printf( TAB_VER ANSI_BOLD ANSI_COLOR_YELLOW "%*d " ANSI_RESET, n, block[i][j]);
+                else if (block[i][j] < 512)
+                    printf( TAB_VER ANSI_BOLD ANSI_COLOR_BLUE "%*d " ANSI_RESET, n, block[i][j]);
+                else if (block[i][j] < 2048)
+                    printf( TAB_VER ANSI_BOLD ANSI_COLOR_GREEN "%*d " ANSI_RESET, n, block[i][j]);
+                else
+                    printf( TAB_VER ANSI_BOLD ANSI_COLOR_RED "%*d " ANSI_RESET, n, block[i][j]);
+            } else
+                printf( TAB_VER ANSI_BOLD "%*c " ANSI_RESET, n, ' ');
         }
         printf(TAB_VER "\n");
         if (i!=n-1) //No final imprime a divisão horizontal
@@ -373,13 +387,28 @@ void printGame(int **block, int n) { //Imprime a tabela completa do jogo
 }
 
 void printScore(Player player) {
-    printf("Pontuação: %6d Desfazer: %2d Trocar: %2d\n", player.score, player.undoMoves, player.undoMoves);
+    printf("Pontuação: " ANSI_ITALIC "%6d " ANSI_RESET, player.score);
+    printf("Desfazer: " ANSI_ITALIC "%2d " ANSI_RESET, player.undoMoves);
+    printf("Trocar: " ANSI_ITALIC "%2d\n" ANSI_RESET, player.changeMoves);
 }
 
 void showHelp() {
     clear();
-    printf("Como Jogar:\n");
-    printf("Use");
+    printf(ANSI_BOLD "Como Jogar " ANSI_ITALIC ANSI_COLOR_YELLOW "2048:\n" ANSI_RESET);
+    printf(ANSI_BOLD "Objetivo:\n" ANSI_RESET);
+    printf("Combine blocos com o mesmo número até formar o bloco 2048. Quanto mais combinações, maior sua pontuação!\n\n");
+    printf(ANSI_BOLD "Pontuação:\n" ANSI_RESET);
+    printf("Os valores das peças resultantes são somados a pontuação.\n");
+    printf("A cada peça obtida com valor igual a 256, você ganha um movimento desfazer.\n");
+    printf("E a cada peça com valor 512, você ganha um movimento trocar.\n\n");
+    printf(ANSI_BOLD "Comandos:\n" ANSI_RESET);
+    printf("W – Move os blocos para cima\n");
+    printf("A – Move os blocos para a esquerda\n");
+    printf("S – Move os blocos para baixo\n");
+    printf("D – Move os blocos para a direita\n");
+    printf("U – Desfaz o último movimento\n");
+    printf("T – Troca a posição de dois blocos\n");
+    printf("V – Volta ao menu principal\n");
     enterContinue();
 }
 
@@ -387,14 +416,15 @@ void showRanking(Ranking ranking[3]) {
     clear();
     int isNull=0;
     for (int i=0;i<3;i++) {
-        if (ranking[i].playerCount != 0)
-            printf("NOME%-23s|PTS |TAM %d\n", "", 4+i);
+        if (ranking[i].playerCount != 0) {
+            printf(ANSI_BOLD ANSI_DOUBLE_UNDERLINE "%-28s" TAB_VER "%-8s" TAB_VER "TAM %d\n" ANSI_RESET, "NOME", "PTS", 4+i);
+        }
         else {
             isNull++;
             continue;
         }
         for (int j=0;j<ranking[i].playerCount;j++)
-            printf("%-27s|%4d\n", ranking[i].player[j].name, ranking[i].player[j].score);
+            printf("%-28s" TAB_VER "%8d" TAB_VER "\n", ranking[i].player[j].name, ranking[i].player[j].score);
     }
     if (isNull==3)
         printf("Não existem jogadores no ranking!");
@@ -430,12 +460,13 @@ void saveRanking(Game *currentGame, Ranking ranking[3]) {
             for (int l=9; l>j; l--) //Lógica para armazenar os rankings em ordem crescente, e descartar os de menor pontuação
                 ranking[i].player[l] = ranking[i].player[l-1];
             ranking[i].player[j] = currentGame->player;
-            ranking[i].playerCount++;
+            if (ranking[i].playerCount<10)
+                ranking[i].playerCount++;
             break;
         }
-    for (int i=0; i<3; i++)
+    for (i=0; i<3; i++)
         fwrite(&ranking[i].playerCount, sizeof(int), 1, file);
-    for (int i=0; i<3; i++)
+    for (i=0; i<3; i++)
         for (int j=0; j<ranking[i].playerCount; j++) {
             fwrite(ranking[i].player[j].name, sizeof(char), TAM, file);
             fwrite(&ranking[i].player[j].score, sizeof(int), 1, file);
@@ -443,7 +474,7 @@ void saveRanking(Game *currentGame, Ranking ranking[3]) {
     fclose(file);
 }
 
-void saveGame(const Game currentGame, const LastMove lastMove) {
+void saveGame(const Game currentGame, const LastMove lastMove) { //Salva o jogo no formato pedido
     char fileName[TAM];
 
     clear();
@@ -462,10 +493,9 @@ void saveGame(const Game currentGame, const LastMove lastMove) {
 
     for (int i=0; i<currentGame.size; i++) {
         for (int j=0; j<currentGame.size; j++)
-            fprintf(file, "%d ", lastMove.lastBoard[i][j]);
+            fprintf(file, "%d ", lastMove.lastBoard[i][j]); //Salva o último tabuleiro para poder desfazer
         fprintf(file, "\n");
     }
-
 
     fclose(file);
 }
@@ -485,8 +515,9 @@ int loadGame(Game *currentGame, LastMove *lastMove) {
     }
     fscanf(file, "%d %d %d", &currentGame->size, &currentGame->player.undoMoves, &currentGame->player.changeMoves);
     fscanf(file, "%d", &currentGame->player.score);
-    fgets(currentGame->player.name, TAM, file);
-    currentGame->player.name[strcspn(currentGame->player.name, "\n")] = 0;
+    fgetc(file); //Elimina o espaço antes do nome
+    fread(currentGame->player.name, sizeof(char), TAM, file); //Se usar fgets ele não consegue ler os 27 chars
+    currentGame->player.name[strcspn(currentGame->player.name, "\n")] = '\0'; //Caso tenha, substitui o \n por \0
 
     currentGame->board = createMatrix(currentGame->size, currentGame->size);
     lastMove->lastBoard = createMatrix(currentGame->size, currentGame->size);
@@ -503,18 +534,18 @@ int loadGame(Game *currentGame, LastMove *lastMove) {
     return 0;
 }
 
-void newGame(int n, char name[TAM], Game *currentGame, LastMove *lastMove) { //Cria um novo jogo
+void newGame(const int n, char name[TAM], Game *currentGame, LastMove *lastMove) { //Cria um novo jogo
     int **blocks = createMatrix(n, n);
     lastMove->lastBoard = createMatrix(n, n);
     clear();
     Player player = {"", 0, 0, 0};
-    name[strcspn(name, "\n")] = 0;
+    name[strcspn(name, "\n")] = '\0'; //Elimina o \n final da string e coloca \0
     strcpy(player.name, name);
     currentGame->player = player;
     currentGame->size = n;
     currentGame->won = 0;
     currentGame->board = blocks;
-    switch (currentGame->size) { //Determina a probabilidade de acordo com a tabela escolhida
+    switch (currentGame->size) { //Determina a probabilidade conforme a tabela escolhida
         case 4:
             currentGame->probability = 90;
             break;
@@ -528,32 +559,47 @@ void newGame(int n, char name[TAM], Game *currentGame, LastMove *lastMove) { //C
     newBlock(currentGame);
 }
 
+void reset(Game *currentGame, LastMove *lastMove) { //Libera as matrizes e reseta o tabuleiro
+    freeMatrix(currentGame->board, currentGame->size);
+    freeMatrix(lastMove->lastBoard, currentGame->size);
+    lastMove->lastBoard = NULL;
+    currentGame->board = NULL;
+}
+
 void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
-    int moved = 0, undid = 0, wonTold=0; //Variavel que determina se alguma peça foi movida, e variavel auxiliar para evitar desfazer duas vezes
-    char choice;
+    int moved = 0, undid = 0, wonTold=0; /*Variável que determina se alguma peça foi movida,
+    e variável auxiliar para evitar desfazer duas vezes, e outra para não repetir a mensagem de ganhou*/
+    char choice; int valid=0;
     while (1) {
-        if (moved) { //Se ele se moveu não há necessidade de testar o gameOver
+        if (moved) { //Se ele se moveu não se deve colocar um novo bloco
             newBlock(currentGame);
-            undid=0; //Zera o undid
+            undid=0;
             moved=0;
         }
         printGame(currentGame->board, currentGame->size);
         printScore(currentGame->player);
         if (gameOver(currentGame)) {
-            printf("%s você perdeu!", currentGame->player.name);
+            printf("\n%s você perdeu!", currentGame->player.name);
             if (currentGame->player.undoMoves>0) {
-                printf("\nVocê deseja desfazer um movimento ou voltar ao menu?\n");
-                scanf(" %c", &choice);
-                switch (choice) {
-                    case 'u':
-                    case 'U':
-                        undoMove(currentGame, lastMove);
-                        undid=1;
-                        continue;
-                    case 'v':
-                    case 'V':
-                        return;
-                }
+                printf("\nVocê deseja desfazer um movimento ou voltar ao menu? (u/v)\n");
+                do {
+                    valid=0;
+                    scanf(" %c", &choice);
+                    switch (choice) {
+                        case 'u':
+                        case 'U':
+                            undoMove(currentGame, lastMove);
+                            undid=1;
+                            valid=1;
+                            continue;
+                        case 'v':
+                        case 'V':
+                            return;
+                        default:
+                            printf("\nOpção inválida!\n");
+                            printf("Digite uma opção: ");
+                    }
+                } while (!valid);
             }
             else {
                 enterContinue(); //Se não tem movimentos desfazer disponíveis não precisa perguntar se quer voltar
@@ -562,61 +608,83 @@ void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
         }
         copyIntMatrix(lastMove->lastBoard, currentGame->board, currentGame->size);
         lastMove->lastScore = currentGame->player.score;
-        scanf(" %c", &choice);
-        switch (choice) { //Determina o que fazer de acordo com o que o usuário digitar
-            case 'a':
-            case 'A':
-                moved = moveLeft(currentGame);
-                break;
-            case 'd':
-            case 'D':
-                moved = moveRight(currentGame);
-                break;
-            case 's':
-            case 'S':
-                moved = moveDown(currentGame);
-                break;
-            case 'w':
-            case 'W':
-                moved = moveUp(currentGame);
-                break;
-            case 'u':
-            case 'U':
-                if (!undid && currentGame->player.undoMoves > 0) {
-                    undoMove(currentGame, lastMove);
-                    undid=1;
-                } else {
-                    printf("Você não pode voltar duas vezes seguidas!");
-                    enterContinue();
-                }
-                break;
-            case 't':
-            case 'T':
-                if (currentGame->player.changeMoves > 0)
-                    changePos(currentGame);
-                break;
-            case 'v':
-            case 'V':
-                freeMatrix(currentGame->board, currentGame->size);
-                currentGame->board = NULL;
-                return;
-        }
-        if (currentGame->won && !wonTold) {
-            printf("%s você ganhou!", currentGame->player.name); //Indica ao usuário que ele ganhou!
-            printf("\nVocê deseja continuar jogando ou voltar ao menu?\n");
+        do { //Continua a ler até achar um valor válido
+            printf("\nDigite um comando: ");
             scanf(" %c", &choice);
+            valid=0;
             switch (choice) {
-                case 'j':
-                case 'J':
-                    wonTold=1;
+                //Determina o que fazer de acordo com o que o usuário digitar
+                case 'a':
+                case 'A':
+                    moved = moveLeft(currentGame);
+                    valid=1;
+                    break;
+                case 'd':
+                case 'D':
+                    moved = moveRight(currentGame);
+                    valid=1;
+                    break;
+                case 's':
+                case 'S':
+                    moved = moveDown(currentGame);
+                    valid=1;
+                    break;
+                case 'w':
+                case 'W':
+                    moved = moveUp(currentGame);
+                    valid=1;
+                    break;
+                case 'u':
+                case 'U':
+                    if (!undid && currentGame->player.undoMoves > 0) { //Desfaz o movimento
+                        undoMove(currentGame, lastMove);
+                        undid=1;
+                    } else if (undid) {
+                        printf("Você não pode voltar duas vezes seguidas!");
+                        enterContinue();
+                    } else {
+                        printf("Você não pode desfazer ainda!");
+                        enterContinue();
+                    }
+                    valid=1;
+                    break;
+                case 't':
+                case 'T':
+                    if (currentGame->player.changeMoves > 0)
+                        changePos(currentGame);
+                    valid =1;
                     break;
                 case 'v':
                 case 'V':
-                    saveRanking(currentGame, ranking);
-                    freeMatrix(currentGame->board, currentGame->size);
-                    currentGame->board = NULL;
+                    if (currentGame->won) //Se tiver ganho deve resetar e salvar o ranking
+                        saveRanking(currentGame, ranking);
                     return;
+                default:
+                    printf("\nOpção inválida! Dê uma olhada nas instruções do jogo.\n");
             }
+        } while (!valid);
+        if (currentGame->won && !wonTold) { //Se ja tiver feito a mensagem e o jogador continuar, então deve-se pular
+            printf("\n%s você ganhou!", currentGame->player.name); //Indica ao usuário que ele ganhou!
+            do {
+                printf("\nVocê deseja continuar jogando? (s/n)\n");
+                scanf(" %c", &choice);
+                valid=0;
+                switch (choice) {
+                    case 's':
+                    case 'S':
+                        wonTold=1;
+                        valid=1;
+                        break;
+                    case 'n':
+                    case 'N':
+                        saveRanking(currentGame, ranking);
+                        return;
+                    default:
+                        printf("\nOpção inválida!\n");
+                        enterContinue();
+                        clear();
+                }
+            } while (!valid);
         }
     }
     clear();
@@ -635,7 +703,7 @@ void newGameMenu(Game *currentGame, LastMove *lastMove) { //Cria o menu de novo 
 
     do {
         clear();
-        printf("\n\n(4) jogo padrão 4 x 4.\n");
+        printf("(4) jogo padrão 4 x 4.\n");
         printf("(5) jogo 5 x 5.\n");
         printf("(6) jogo 6 x 6.\n");
 
@@ -655,7 +723,7 @@ void newGameMenu(Game *currentGame, LastMove *lastMove) { //Cria o menu de novo 
     } while (1);
 }
 
-int exitGame(Game *currentGame) { //Confirmação simples de sair do jogo
+int exitGame(Game *currentGame, LastMove *lastMove) { //Confirmação simples de sair do jogo
     while (1){ //Repete até uma opção válida ser digitada
         clear();
         printf("Você realmente deseja sair? (Sim/Não)\n");
@@ -667,6 +735,7 @@ int exitGame(Game *currentGame) { //Confirmação simples de sair do jogo
             //Se for sair não faz nada e volta ao main()
             case 's':
             case 'S':
+                reset(currentGame, lastMove);
                 return 1;
             case 'n':
             case 'N':
@@ -688,6 +757,8 @@ void start() {
         //Mostra o menu inicial em loop
         clear();
 
+        printf(ANSI_BOLD "Bem Vindo ao " ANSI_ITALIC ANSI_COLOR_YELLOW "2048\n" ANSI_RESET);
+
         printf("(R) Sair\n");
         printf("(N) Novo Jogo\n");
         printf("(J) Continuar o jogo atual\n");
@@ -697,13 +768,14 @@ void start() {
         printf("(A) Ajuda com as instruções de como jogar\n");
 
         char choice;
+        printf("\nDigite uma opção: ");
         scanf(" %c", &choice);
         switch (choice) {
             case 'R':
             case 'r':
                 /*Caso o usuário decida sair ele da return,
                 consequentemente voltando para main() e saindo do programa */
-                if (exitGame(&currentGame))
+                if (exitGame(&currentGame, &lastMove))
                     return;
                 break;
             case 'N':
@@ -739,7 +811,7 @@ void start() {
                 showHelp();
                 break;
             default:
-                printf("\nOpção inválida!");
+                printf("\nOpção inválida!\n");
                 enterContinue();
         }
     }
