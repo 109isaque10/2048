@@ -592,6 +592,8 @@ void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
     while (1) {
         if (moved) { //Se ele se moveu não se deve colocar um novo bloco
             newBlock(currentGame);
+            if (currentGame->size==6) //Se for 6x6 deve adicionar uma segunda peça
+                newBlock(currentGame);
             undid=0;
             moved=0;
         }
@@ -600,22 +602,22 @@ void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
         if (gameOver(currentGame)) {
             printf("\n%s você perdeu!", currentGame->player.name);
             if (currentGame->player.undoMoves>0) {
-                printf("\nVocê deseja desfazer um movimento ou voltar ao menu? (u/v)\n");
+                printf("\nVocê deseja desfazer um movimento? (s/n)\n");
                 do {
                     valid=0; //Variavel auxiliar para determinar se uma opção válida foi digitada
                     scanf(" %c", &choice);
                     switch (choice) {
-                        case 'u':
-                        case 'U':
+                        case 's':
+                        case 'S':
                             undoMove(currentGame, lastMove);
                             undid++;
                             valid++;
                             break;
-                        case 'v':
-                        case 'V':
+                        case 'n':
+                        case 'N':
                             return;
                         default:
-                            printf("\nOpção inválida!\n");
+                            printf("\nOpção inválida!");
                             printf("Digite uma opção: ");
                     }
                 } while (!valid);
@@ -626,9 +628,10 @@ void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
         }
         do { //Continua a ler até achar um valor válido
             printf("\nDigite um comando: ");
-            scanf(" %c", &choice);
+            char ch[8]; //Para poder usar o comando "voltar"
+            scanf(" %s", ch);
             valid=0;
-            switch (choice) {
+            switch (ch[0]) {
                 //Determina o que fazer de acordo com o que o usuário digitar
                 case 'a':
                 case 'A':
@@ -676,11 +679,13 @@ void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
                     break;
                 case 'v':
                 case 'V':
-                    if (currentGame->won) //Se tiver ganho deve resetar e salvar o ranking
-                        saveRanking(currentGame, ranking);
-                    return;
+                    if (strcmp(ch, "voltar") == 0) { //Compara para ver se a palavra é mesmo Voltar
+                        if (currentGame->won) //Se tiver ganho deve salvar o ranking
+                            saveRanking(currentGame, ranking);
+                        return;
+                    }
                 default:
-                    printf("\nOpção inválida! Dê uma olhada nas instruções do jogo.\n");
+                    printf("\nOpção inválida! Dê uma olhada nas instruções do jogo.");
             }
         } while (!valid);
         if (currentGame->won && !wonTold) { //Se ja tiver feito a mensagem e o jogador continuar, então deve-se pular
@@ -700,7 +705,7 @@ void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
                         saveRanking(currentGame, ranking);
                         return;
                     default:
-                        printf("\nOpção inválida!\n");
+                        printf("\nOpção inválida!");
                         enterContinue();
                         clear();
                 }
@@ -737,7 +742,7 @@ void newGameMenu(Game *currentGame, LastMove *lastMove) { //Cria o menu de novo 
                 newGame(choice, name, currentGame, lastMove);
                 return;
             default:
-                printf("\nOpção inválida\n");
+                printf("\nOpção inválida");
                 enterContinue();
         }
     } while (1);
@@ -761,7 +766,7 @@ int exitGame(Game *currentGame, LastMove *lastMove) { //Confirmação simples de
             case 'N':
                 return 0;
             default:
-                printf("\nOpção inválida!\n");
+                printf("\nOpção inválida!");
                 enterContinue();
         }
     }
@@ -831,7 +836,7 @@ void start() {
                 showHelp();
                 break;
             default:
-                printf("\nOpção inválida!\n");
+                printf("\nOpção inválida!");
                 enterContinue();
         }
     }
