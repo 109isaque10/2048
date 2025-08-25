@@ -124,7 +124,8 @@ int gameOver(const Game *currentGame) { //Testa todas as peças para ver se tem 
 }
 
 int moveUp(Game *currentGame) { //Mover os blocos para cima
-    int moved = 0;
+    int moved = 0, **tempBoard = createMatrix(currentGame->size, currentGame->size);
+    copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
     for (int j = 0; j < currentGame->size; j++) {
         int newPos = 0;
         for (int i = 0; i < currentGame->size; i++) //Move todos os blocos para cima
@@ -165,11 +166,15 @@ int moveUp(Game *currentGame) { //Mover os blocos para cima
                 newPos++;
             }
     }
+    if (moved)
+        copyIntMatrix(currentGame->lastBoard, tempBoard, currentGame->size);
+    freeMatrix(tempBoard, currentGame->size);
     return moved;
 }
 
 int moveDown(Game *currentGame) { //Move os blocos para baixo
-    int moved = 0;
+    int moved = 0, **tempBoard = createMatrix(currentGame->size, currentGame->size);
+    copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
     for (int j = 0; j < currentGame->size; j++) {
         int newPos = currentGame->size-1;
         for (int i = currentGame->size-1; i >= 0; i--) //Move todos os blocos para baixo
@@ -210,11 +215,15 @@ int moveDown(Game *currentGame) { //Move os blocos para baixo
                 newPos--;
             }
     }
+    if (moved)
+        copyIntMatrix(currentGame->lastBoard, tempBoard, currentGame->size);
+    freeMatrix(tempBoard, currentGame->size);
     return moved;
 }
 
 int moveLeft(Game *currentGame) { //Move os blocos para a esquerda
-    int moved = 0;
+    int moved = 0, **tempBoard = createMatrix(currentGame->size, currentGame->size);
+    copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
     for (int i = 0; i < currentGame->size; i++) {
         int newPos = 0;
         for (int j=0; j < currentGame->size; j++) //Move todos os blocos para a esquerda
@@ -255,11 +264,15 @@ int moveLeft(Game *currentGame) { //Move os blocos para a esquerda
                 newPos++;
             }
     }
+    if (moved)
+        copyIntMatrix(currentGame->lastBoard, tempBoard, currentGame->size);
+    freeMatrix(tempBoard, currentGame->size);
     return moved;
 }
 
 int moveRight(Game *currentGame) { //Move os blocos para a direita
-    int moved = 0;
+    int moved = 0, **tempBoard = createMatrix(currentGame->size, currentGame->size);
+    copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
     for (int i = 0; i < currentGame->size; i++) { //Move todos blocos não nulos para a direita
         int newPos = currentGame->size-1;
         for (int j = currentGame->size-1; j >= 0; j--)
@@ -300,6 +313,9 @@ int moveRight(Game *currentGame) { //Move os blocos para a direita
                 newPos--;
             }
     }
+    if (moved)
+        copyIntMatrix(currentGame->lastBoard, tempBoard, currentGame->size);
+    freeMatrix(tempBoard, currentGame->size);
     return moved;
 }
 
@@ -424,7 +440,7 @@ void showHelp() {
     printf("D – Move os blocos para a direita\n");
     printf("U – Desfaz o último movimento\n");
     printf("T – Troca a posição de dois blocos\n");
-    printf("V – Volta ao menu principal\n");
+    printf("Voltar – Volta ao menu principal\n");
     enterContinue();
 }
 
@@ -629,25 +645,21 @@ void runGame(Game *currentGame, Ranking ranking[3]) {
                 //Determina o que fazer de acordo com o que o usuário digitar
                 case 'a':
                 case 'A':
-                    copyLast(currentGame);
                     moved = moveLeft(currentGame);
                     valid++;
                     break;
                 case 'd':
                 case 'D':
-                    copyLast(currentGame);
                     moved = moveRight(currentGame);
                     valid++;
                     break;
                 case 's':
                 case 'S':
-                    copyLast(currentGame);
                     moved = moveDown(currentGame);
                     valid++;
                     break;
                 case 'w':
                 case 'W':
-                    copyLast(currentGame);
                     moved = moveUp(currentGame);
                     valid++;
                     break;
@@ -673,7 +685,8 @@ void runGame(Game *currentGame, Ranking ranking[3]) {
                     break;
                 case 'v':
                 case 'V':
-                    if (strcmp(ch, "voltar") == 0) { //Compara para ver se a palavra é mesmo Voltar
+                    if (strcasecmp(ch, "voltar") == 0) { /*Compara para ver se a palavra é mesmo Voltar, sem distinção
+                        entre maiúsculas e minúsculas */
                         if (currentGame->won) //Se tiver ganho deve salvar o ranking
                             saveRanking(currentGame, ranking);
                         return;
