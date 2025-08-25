@@ -82,10 +82,6 @@ void copyIntMatrix(int **dest, int**source, const int n) {
         memcpy(dest[i], source[i], sizeof(int) * n);
 }
 
-void copyLast(const Game *currentGame) { //Copia o tabuleiro atual para o de último movimento
-    copyIntMatrix(currentGame->lastBoard, currentGame->board, currentGame->size);
-}
-
 void reset(Game *currentGame) { //Libera as matrizes e reseta o tabuleiro
     //So libera a memoria se o tabuleiro tiver sido criado
     if (currentGame->board != NULL) {
@@ -669,10 +665,10 @@ void runGame(Game *currentGame, Ranking ranking[3]) {
                         undoMove(currentGame);
                         undid++;
                     } else if (undid) {
-                        printf("Você não pode voltar duas vezes seguidas!");
+                        printf("\nVocê não pode voltar duas vezes seguidas!");
                         enterContinue();
                     } else {
-                        printf("Você não pode desfazer ainda!");
+                        printf("\nVocê não pode desfazer ainda!");
                         enterContinue();
                     }
                     valid++;
