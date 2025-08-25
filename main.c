@@ -86,6 +86,18 @@ void copyIntMatrix(int **dest, int**source, int n) {
         memcpy(dest[i], source[i], sizeof(int) * n);
 }
 
+void reset(Game *currentGame, LastMove *lastMove) { //Libera as matrizes e reseta o tabuleiro
+    //So libera a memoria se o tabuleiro tiver sido criado
+    if (currentGame->board != NULL) {
+        freeMatrix(currentGame->board, currentGame->size);
+        currentGame->board = NULL;
+    }
+    if (lastMove->lastBoard != NULL) {
+        freeMatrix(lastMove->lastBoard, currentGame->size);
+        lastMove->lastBoard = NULL;
+    }
+}
+
 void newBlock(const Game *currentGame) { //Cria um novo bloco aleátorio
     int x, y;
     do { //Enquanto o bloco de destino for diferente de 0 (Nulo), aleatorizar novamente
@@ -525,6 +537,8 @@ int loadGame(Game *currentGame, LastMove *lastMove) {
     fgets(currentGame->player.name, TAM, file);
     currentGame->player.name[strcspn(currentGame->player.name, "\n")] = '\0'; //Caso tenha, substitui o \n por \0
 
+    if (currentGame->board != NULL) //Se tinha um jogo antes, deve primeiro liberar a mémoria
+        reset(currentGame, lastMove);
     currentGame->board = createMatrix(currentGame->size, currentGame->size);
     lastMove->lastBoard = createMatrix(currentGame->size, currentGame->size);
 
@@ -541,8 +555,8 @@ int loadGame(Game *currentGame, LastMove *lastMove) {
 }
 
 void newGame(const int n, char name[TAM], Game *currentGame, LastMove *lastMove) { //Cria um novo jogo
-    int **blocks = createMatrix(n, n);
-    lastMove->lastBoard = createMatrix(n, n);
+    if (currentGame->board != NULL) //Se tinha um jogo antes, deve primeiro liberar a mémoria
+        reset(currentGame, lastMove);
     clear();
     Player player = {"", 0, 0, 0};
     name[strcspn(name, "\n")] = '\0'; //Elimina o \n final da string e coloca \0
@@ -550,7 +564,8 @@ void newGame(const int n, char name[TAM], Game *currentGame, LastMove *lastMove)
     currentGame->player = player;
     currentGame->size = n;
     currentGame->won = 0;
-    currentGame->board = blocks;
+    currentGame->board = createMatrix(n, n);
+    lastMove->lastBoard = createMatrix(n, n);
     switch (currentGame->size) { //Determina a probabilidade conforme a tabela escolhida
         case 4:
             currentGame->probability = 90;
@@ -563,18 +578,6 @@ void newGame(const int n, char name[TAM], Game *currentGame, LastMove *lastMove)
     }
     newBlock(currentGame);
     newBlock(currentGame);
-}
-
-void reset(Game *currentGame, LastMove *lastMove) { //Libera as matrizes e reseta o tabuleiro
-    //So libera a memoria se o tabuleiro tiver sido criado
-    if (currentGame->board != NULL) {
-        freeMatrix(currentGame->board, currentGame->size);
-        currentGame->board = NULL;
-    }
-    if (lastMove->lastBoard != NULL) {
-        freeMatrix(lastMove->lastBoard, currentGame->size);
-        lastMove->lastBoard = NULL;
-    }
 }
 
 void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
