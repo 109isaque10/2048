@@ -57,10 +57,15 @@ void clear() { //Limpa o terminal no linux e windows
         return;
 }
 
+void clearBuffer() { //Limpa o buffer
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
 void enterContinue() {
     printf("\nPressione enter para continuar...");
-    getchar();
-    while( getchar() != '\n' );
+    getchar(); //Elimina um único \n deixado pelo comando dado anteriormente
+    clearBuffer();
 }
 
 int **createMatrix(const int n, const int m) { //Cria matriz com n e m
@@ -139,7 +144,7 @@ int moveUp(Game *currentGame) { //Mover os blocos para cima
             }
 
         newPos = 0;
-        for (int i = 0; i < currentGame->size-1; i++) //Move novamente os blocos para cima para preencher os vazios
+        for (int i = 0; i < currentGame->size; i++) //Move novamente os blocos para cima para preencher os vazios
             if (currentGame->board[i][j] != 0) {
                 if (i != newPos) {
                     currentGame->board[newPos][j] = currentGame->board[i][j];
@@ -184,7 +189,7 @@ int moveDown(Game *currentGame) { //Move os blocos para baixo
             }
 
         newPos = currentGame->size-1;
-        for (int i = currentGame->size-1; i >= 0; i--) //Move novamente os blocos paraa baixo para preencher os vazios
+        for (int i = currentGame->size-1; i >= 0; i--) //Move novamente os blocos para baixo para preencher os vazios
             if (currentGame->board[i][j] != 0) {
                 if (i != newPos) {
                     currentGame->board[newPos][j] = currentGame->board[i][j];
@@ -229,7 +234,7 @@ int moveLeft(Game *currentGame) { //Move os blocos para a esquerda
             }
 
         newPos = 0;
-        for (int j = 0; j < currentGame->size-1; j++) //Move novamente os blocos para preencher os vazios
+        for (int j = 0; j < currentGame->size; j++) //Move novamente os blocos para preencher os vazios
             if (currentGame->board[i][j] != 0) {
                 if (j != newPos) {
                     currentGame->board[i][newPos] = currentGame->board[i][j];
@@ -424,7 +429,8 @@ void showRanking(Ranking ranking[3]) {
             continue;
         }
         for (int j=0;j<ranking[i].playerCount;j++)
-            printf("%-28s" TAB_VER "%8d" TAB_VER "\n", ranking[i].player[j].name, ranking[i].player[j].score);
+            //Sem o ".*s" ele imprime lixo se tiver preenchido todos as 27 posições, já que não tem o \0 para limitar
+            printf("%-28.*s" TAB_VER "%8d" TAB_VER "\n", TAM, ranking[i].player[j].name, ranking[i].player[j].score);
     }
     if (isNull==3)
         printf("Não existem jogadores no ranking!");
@@ -446,7 +452,7 @@ void loadRanking(Ranking ranking[3]) { //Carrega o ranking de acordo com a forma
         fread(&ranking[i].playerCount, sizeof(int), 1, file);
     for (int i=0; i<3; i++)
         for (int j=0; j<ranking[i].playerCount; j++) {
-            fread(ranking[i].player[j].name, sizeof(char), TAM+1, file);
+            fread(ranking[i].player[j].name, sizeof(char), TAM, file);
             fread(&ranking[i].player[j].score, sizeof(int), 1, file);
         }
     fclose(file);
@@ -516,7 +522,7 @@ int loadGame(Game *currentGame, LastMove *lastMove) {
     fscanf(file, "%d %d %d", &currentGame->size, &currentGame->player.undoMoves, &currentGame->player.changeMoves);
     fscanf(file, "%d", &currentGame->player.score);
     fgetc(file); //Elimina o espaço antes do nome
-    fread(currentGame->player.name, sizeof(char), TAM, file); //Se usar fgets ele não consegue ler os 27 chars
+    fgets(currentGame->player.name, TAM, file);
     currentGame->player.name[strcspn(currentGame->player.name, "\n")] = '\0'; //Caso tenha, substitui o \n por \0
 
     currentGame->board = createMatrix(currentGame->size, currentGame->size);
@@ -560,10 +566,15 @@ void newGame(const int n, char name[TAM], Game *currentGame, LastMove *lastMove)
 }
 
 void reset(Game *currentGame, LastMove *lastMove) { //Libera as matrizes e reseta o tabuleiro
-    freeMatrix(currentGame->board, currentGame->size);
-    freeMatrix(lastMove->lastBoard, currentGame->size);
-    lastMove->lastBoard = NULL;
-    currentGame->board = NULL;
+    //So libera a memoria se o tabuleiro tiver sido criado
+    if (currentGame->board != NULL) {
+        freeMatrix(currentGame->board, currentGame->size);
+        currentGame->board = NULL;
+    }
+    if (lastMove->lastBoard != NULL) {
+        freeMatrix(lastMove->lastBoard, currentGame->size);
+        lastMove->lastBoard = NULL;
+    }
 }
 
 void runGame(Game *currentGame, Ranking ranking[3], LastMove *lastMove) {
@@ -698,7 +709,7 @@ void newGameMenu(Game *currentGame, LastMove *lastMove) { //Cria o menu de novo 
 
     char name[TAM]; //TAM = 27
     printf("Digite seu nome: ");
-    getchar();
+    clearBuffer();
     fgets(name, TAM, stdin);
 
     do {
