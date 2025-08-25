@@ -44,7 +44,7 @@ typedef struct {
     int **board;
     int **lastBoard;
     int size;
-    int won;
+    int won; //Indica se o usuário ja ganhou
     int probability;
 } Game;
 
@@ -58,8 +58,8 @@ void clearBuffer() { //Limpa o buffer
     while ((c = getchar()) != '\n' && c != EOF);
 }
 
-void enterContinue() {
-    clearBuffer();
+void enterContinue() { //Para poder mostrar uma tela temporária antes de voltar ao menu ou mostrar o tabuleiro novamente
+    clearBuffer(); //Precisa disso antes, senão ele pula, pois ele pega o \n do comando anterior
     printf("\nPressione enter para continuar...");
     clearBuffer();
 }
@@ -104,14 +104,14 @@ void newBlock(const Game *currentGame) { //Cria um novo bloco aleátorio
 
 int gameOver(const Game *currentGame) { //Testa todas as peças para ver se tem peças adjacentes que podem ser juntadas
     for (int i=0; i < currentGame->size; i++)
-        for (int j=0; j < currentGame->size; j++) {
+        for (int j=0; j < currentGame->size; j++) { //Testa se a atual e as adjacentes são iguais
             if (currentGame->board[i][j] == 0)
                 return 0;
-            if (i!= 0 && currentGame->board[i][j] == currentGame->board[i-1][j])
+            if (i!=0 && currentGame->board[i][j] == currentGame->board[i-1][j])
                 return 0;
             if (i<currentGame->size-1 && currentGame->board[i][j] == currentGame->board[i+1][j])
                 return 0;
-            if (j!= 0 && currentGame->board[i][j] == currentGame->board[i][j-1])
+            if (j!=0 && currentGame->board[i][j] == currentGame->board[i][j-1])
                 return 0;
             if (j<currentGame->size-1 && currentGame->board[i][j] == currentGame->board[i][j+1])
                 return 0;
@@ -120,6 +120,7 @@ int gameOver(const Game *currentGame) { //Testa todas as peças para ver se tem 
 }
 
 int moveUp(Game *currentGame) { //Mover os blocos para cima
+    //Variável auxiliar para salvar o tabuleiro antigo apenas se tiver movido
     int moved = 0, **tempBoard = createMatrix(currentGame->size, currentGame->size);
     copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
     for (int j = 0; j < currentGame->size; j++) {
@@ -169,6 +170,7 @@ int moveUp(Game *currentGame) { //Mover os blocos para cima
 }
 
 int moveDown(Game *currentGame) { //Move os blocos para baixo
+    //Variável auxiliar para salvar o tabuleiro antigo apenas se tiver movido
     int moved = 0, **tempBoard = createMatrix(currentGame->size, currentGame->size);
     copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
     for (int j = 0; j < currentGame->size; j++) {
@@ -196,7 +198,7 @@ int moveDown(Game *currentGame) { //Move os blocos para baixo
                     case 512:
                         currentGame->player.changeMoves++;
                         break;
-                    case 2048:
+                    case 2048: //Se o bloco atual resultante for 2048, então o jogador ganhou!
                         currentGame->won = 1;
                 }
             }
@@ -218,6 +220,7 @@ int moveDown(Game *currentGame) { //Move os blocos para baixo
 }
 
 int moveLeft(Game *currentGame) { //Move os blocos para a esquerda
+    //Variável auxiliar para salvar o tabuleiro antigo apenas se tiver movido
     int moved = 0, **tempBoard = createMatrix(currentGame->size, currentGame->size);
     copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
     for (int i = 0; i < currentGame->size; i++) {
@@ -245,7 +248,7 @@ int moveLeft(Game *currentGame) { //Move os blocos para a esquerda
                     case 512:
                         currentGame->player.changeMoves++;
                         break;
-                    case 2048:
+                    case 2048: //Se o bloco atual resultante for 2048, então o jogador ganhou!
                         currentGame->won = 1;
                 }
             }
@@ -267,9 +270,10 @@ int moveLeft(Game *currentGame) { //Move os blocos para a esquerda
 }
 
 int moveRight(Game *currentGame) { //Move os blocos para a direita
+    //Variável auxiliar para salvar o tabuleiro antigo apenas se tiver movido
     int moved = 0, **tempBoard = createMatrix(currentGame->size, currentGame->size);
     copyIntMatrix(tempBoard, currentGame->board, currentGame->size);
-    for (int i = 0; i < currentGame->size; i++) { //Move todos blocos não nulos para a direita
+    for (int i = 0; i < currentGame->size; i++) { //Move todos os blocos não nulos para a direita
         int newPos = currentGame->size-1;
         for (int j = currentGame->size-1; j >= 0; j--)
             if (currentGame->board[i][j] != 0) {
@@ -294,7 +298,7 @@ int moveRight(Game *currentGame) { //Move os blocos para a direita
                     case 512:
                         currentGame->player.changeMoves++;
                         break;
-                    case 2048:
+                    case 2048: //Se o bloco atual resultante for 2048, então o jogador ganhou!
                         currentGame->won = 1;
                 }
             }
@@ -320,7 +324,7 @@ void undoMove(Game *currentGame) { //Desfaz o ultimo movimento
     currentGame->player.undoMoves--;
 }
 
-void changePos(const Game *currentGame) { //Muda a posição com o formato a1 b2
+void changePos(Game *currentGame) { //Muda a posição com o formato a1 b2
     int x, y, i1=0, j1=0, i2=0, j2=0;
     char a, b;
     scanf(" %c%d", &a, &x); //O espaço antes do %c 'elimina' o \n
@@ -337,10 +341,11 @@ void changePos(const Game *currentGame) { //Muda a posição com o formato a1 b2
         j2 = y-1;
     }
 
-    if (currentGame->board[i1][j1] != 0 && currentGame->board[i2][j2] != 0) {
-        const int tmpBlock = currentGame->board[i2][j2];
+    if (currentGame->board[i1][j1] != 0 && currentGame->board[i2][j2] != 0) { //Finalmente muda os blocos de posição se ambos forem não nulos
+        const int tmpBlock = currentGame->board[i2][j2]; //Variável auxiliar para armazenar temporariamente o bloco i2, j2
         currentGame->board[i2][j2] = currentGame->board[i1][j1];
         currentGame->board[i1][j1] = tmpBlock;
+        currentGame->player.changeMoves--;
     } else {
         printf("\nVocê digitou uma posição inválida!");
         enterContinue();
@@ -444,7 +449,7 @@ void showRanking(const Ranking ranking[3]) { //Mostra o ranking, separados por t
     clear();
     int isNull=0;
     for (int i=0;i<3;i++) {
-        if (ranking[i].playerCount != 0) {
+        if (ranking[i].playerCount != 0) { //Se não tiver jogadores ele não imprime nada
             printf(ANSI_BOLD ANSI_DOUBLE_UNDERLINE "%-28s" TAB_VER "%-8s" TAB_VER "TAM %d\n" ANSI_RESET, "NOME", "PTS", 4+i);
         }
         else {
@@ -455,14 +460,14 @@ void showRanking(const Ranking ranking[3]) { //Mostra o ranking, separados por t
             //Sem o ".*s" ele imprime lixo se tiver preenchido todos as 27 posições, já que não tem o \0 para limitar
             printf("%-28.*s" TAB_VER "%8d" TAB_VER "\n", TAM, ranking[i].player[j].name, ranking[i].player[j].score);
     }
-    if (isNull==3)
+    if (isNull==3) //Se não houver nenhum jogador em nenhum tamanho, imprime erro
         printf("Não existem jogadores no ranking!");
     enterContinue();
 }
 
 void loadRanking(Ranking ranking[3]) { //Carrega o ranking de acordo com a formatação
     FILE *file = fopen("ranking.dat", "rb");
-    if (file == NULL) {
+    if (file == NULL) { //Se for nulo ele apenas inicializa o ranking e retorna
         for (int i = 0; i < 3; i++) {
             ranking[i].playerCount = 0;
             for (int j = 0; j < 10; j++) {
@@ -484,7 +489,7 @@ void loadRanking(Ranking ranking[3]) { //Carrega o ranking de acordo com a forma
 void saveRanking(const Game *currentGame, Ranking ranking[3]) { //Salva o ranking de acordo com a formatação
     FILE *file = fopen("ranking.dat", "wb");
     int i=currentGame->size-4;
-    for (int j=0; j<10; j++) //Eliminates lower scores
+    for (int j=0; j<10; j++) //Elimina pontuações menores
         if (currentGame->player.score > ranking[i].player[j].score) {
             for (int l=9; l>j; l--) //Lógica para armazenar os rankings em ordem crescente, e descartar os de menor pontuação
                 ranking[i].player[l] = ranking[i].player[l-1];
@@ -507,6 +512,11 @@ void saveGame(const Game currentGame) { //Salva o jogo no formato pedido
     char fileName[TAM];
 
     clear();
+    if (currentGame.board != NULL) {
+        printf("Não existe um jogo em andamento!");
+        enterContinue();
+        return;
+    }
     printf("Qual o nome do arquivo a ser salvo?\n(ATENÇÃO! O ARQUIVO SERÁ SOBRESCRITO)\n");
     scanf("%s", fileName);
 
@@ -664,10 +674,10 @@ void runGame(Game *currentGame, Ranking ranking[3]) {
                     if (!undid && currentGame->player.undoMoves > 0) { //Desfaz o movimento
                         undoMove(currentGame);
                         undid++;
-                    } else if (undid) {
+                    } else if (undid) { //Se já tiver desfeito, não poderá desfazer novamente
                         printf("\nVocê não pode voltar duas vezes seguidas!");
                         enterContinue();
-                    } else {
+                    } else { //Não possuí movimentos desfazer
                         printf("\nVocê não pode desfazer ainda!");
                         enterContinue();
                     }
@@ -675,7 +685,7 @@ void runGame(Game *currentGame, Ranking ranking[3]) {
                     break;
                 case 't':
                 case 'T':
-                    if (currentGame->player.changeMoves > 0)
+                    if (currentGame->player.changeMoves > 0) //Se tiver movimentos trocar, então trocar
                         changePos(currentGame);
                     valid++;
                     break;
@@ -716,9 +726,9 @@ void runGame(Game *currentGame, Ranking ranking[3]) {
         }
     }
     clear();
-    if (currentGame->won) {
+    if (currentGame->won)
         saveRanking(currentGame, ranking);
-    } // Só salva o ranking quando ele decidir sair
+    // Só salva o ranking quando ele decidir sair
 }
 
 void newGameMenu(Game *currentGame) { //Cria o menu de novo jogo
